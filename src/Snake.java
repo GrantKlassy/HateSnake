@@ -22,6 +22,9 @@ public class Snake {
 	// Whether or not we are currently dead
 	boolean dead = false;
 
+	// Whether or not we have won
+	boolean won = false;
+
 	// The current direction
 	Dir snakeDir;
 
@@ -104,8 +107,6 @@ public class Snake {
 		// Add the new head and remove the old one
 		this.snake.add(nextPos);
 
-		// TODO Check for win
-
 		// Check for death by snake
 		for (int i=0; i < (this.snake.size() - 1); i++) {
 			Integer[] bodyPiece = this.snake.get(i);
@@ -124,6 +125,11 @@ public class Snake {
 				}
 		}
 
+		// Check if we've won
+		if (this.snake.size() == (this.boardSizeX * this.boardSizeY)) {
+			this.won = true;
+		}
+
 	}
 
 	public Integer[] getHead() {
@@ -132,6 +138,10 @@ public class Snake {
 
 	public boolean isDead() {
 		return this.dead;
+	}
+
+	public boolean hasWon() {
+		return this.won;
 	}
 
 	public void debugSnake() {

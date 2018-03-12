@@ -15,9 +15,9 @@ public class HateSnake extends PApplet {
 	Queue<Character> keyQueue = new LinkedList<Character>();
 
 	// Constants for the game
-	final int boardSizeX = 5;
-	final int boardSizeY = 5;
-	final int scale = 50;
+	final int boardSizeX = 4;
+	final int boardSizeY = 4;
+	final int scale = 75;
 
 	// The snake for this game
 	Snake snake = new Snake(this.boardSizeX, this.boardSizeY);
@@ -95,6 +95,14 @@ public class HateSnake extends PApplet {
 		if (this.state == 1) {
 
 			if (this.speedCnt % this.speed == 0) {
+
+				// Check to see if we've won
+				if (this.snake.hasWon()) {
+					// TODO Something more than just exit
+					System.out.println("You won!");
+					System.exit(0);
+				}
+
 				// Save the previous tail position
 				Integer tailX = this.snake.getSnake().get(0)[0];
 				Integer tailY = this.snake.getSnake().get(0)[1];
@@ -115,6 +123,7 @@ public class HateSnake extends PApplet {
 					// TODO Something more than just exit
 					System.exit(0);
 				}
+
 
 				// If the apple was updated...
 				if (this.apple.wasUpdated()) {
@@ -137,6 +146,7 @@ public class HateSnake extends PApplet {
 					this.fill(this.snake.getColor().getRed(), this.snake.getColor().getGreen(), this.snake.getColor().getBlue());
 					this.rect((snakeX * this.scale), (snakeY * this.scale), this.scale, this.scale);
 				}
+
 
 			}
 			// TODO Reset speed count to avoid overflow?
