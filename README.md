@@ -1,4 +1,7 @@
 # HateSnake
+
+Code last updated @ [2018-03-12](https://github.com/GrantKlassy/HateSnake/commits/main)
+
 > A snake style game which you will come to hate
 
 ## Background
