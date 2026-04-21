@@ -1,0 +1,15 @@
+.git
+.github
+.gitignore
+.gitattributes
+CLAUDE.md
+README.md
+LICENSE.txt
+Dockerfile
+.dockerignore
+lefthook.yml
+Taskfile.yml
+Taskfile.local.yml
+linux
+bin/*.class
+bin/*.jar

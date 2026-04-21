@@ -1,0 +1,52 @@
+version: "3"
+
+# Repo-local tasks for HateSnake. `task check` on this repo fans out to
+# `local:check`, which builds the container (which in turn runs the smoke
+# tests inside the builder stage).
+
+vars:
+  IMAGE: hatesnake:dev
+  CONTAINER_CMD:
+    sh: command -v docker 2>/dev/null || command -v podman 2>/dev/null || true
+
+tasks:
+  check:
+    desc: Build the container (automated tests run inside the builder stage)
+    cmds:
+      - task: docker:build
+
+  build:
+    desc: Build the HateSnake container image
+    cmds:
+      - task: docker:build
+
+  docker:build:
+    desc: Build the container. A successful build proves the smoke tests pass.
+    cmds:
+      - |
+        if [ -z "{{.CONTAINER_CMD}}" ]; then
+          echo "ERROR: neither docker nor podman is installed"
+          exit 1
+        fi
+        {{.CONTAINER_CMD}} build -t {{.IMAGE}} .
+
+  docker:test:
+    desc: Run the smoke tests inside the runtime image
+    cmds:
+      - |
+        if [ -z "{{.CONTAINER_CMD}}" ]; then
+          echo "ERROR: neither docker nor podman is installed"
+          exit 1
+        fi
+        {{.CONTAINER_CMD}} run --rm {{.IMAGE}} test
+
+  docker:version:
+    desc: Print the JDK version baked into the image
+    cmds:
+      - '{{.CONTAINER_CMD}} run --rm {{.IMAGE}} version'
+
+  dev:
+    desc: Compile and run the game locally (requires a JDK on the host)
+    cmds:
+      - ./linux/compile.sh
+      - ./linux/run.sh

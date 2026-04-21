@@ -18,3 +18,19 @@ $ ./linux/compile.sh && ./linux/run.sh
 ```
 TODO Create a PowerShell script or a jar file for running on Windows
 ```
+
+## Tests and container
+
+A multi-stage `Dockerfile` compiles the sources, runs the headless smoke tests
+in `src/test/SmokeTest.java`, and packages a minimal non-root runtime image
+based on a pinned Eclipse Temurin 17 JRE. The build fails if any test fails,
+so a green image is a green test run.
+
+```bash
+$ task build          # podman/docker build -t hatesnake:dev .
+$ task local:docker:test     # run SmokeTest inside the runtime image
+$ task local:docker:version  # print the JDK version baked into the image
+```
+
+`task check` also runs the container build as part of the standard repo check
+fan-out.
