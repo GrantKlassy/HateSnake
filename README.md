@@ -1,6 +1,8 @@
+[![Sponsor GrantKlassy](https://img.shields.io/badge/Sponsor-GrantKlassy-ea4aaa?logo=github-sponsors&logoColor=white&style=for-the-badge)](https://github.com/sponsors/GrantKlassy)
+
 # HateSnake
 
-Code last updated @ [2026-04-20](https://github.com/GrantKlassy/HateSnake/commits/main)
+Code last updated @ [2026-04-27](https://github.com/GrantKlassy/HateSnake/commits/main)
 
 > A snake style game which you will come to hate
 

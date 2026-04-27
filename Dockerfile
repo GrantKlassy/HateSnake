@@ -11,7 +11,10 @@
 
 ARG REGISTRY=docker.io/library
 ARG JDK_TAG=17-jdk-alpine
-ARG JRE_TAG=17-jre-alpine
+# JRE runtime is noble (Ubuntu) rather than alpine --- the alpine Temurin JRE
+# is a headless build (no libawt_xawt.so) and Processing 3 cannot open a
+# window without it.
+ARG JRE_TAG=17-jre-noble
 
 # ============================================================================
 # Stage 1: compile + test
@@ -42,9 +45,24 @@ LABEL org.opencontainers.image.source="https://github.com/GrantKlassy/HateSnake"
       org.opencontainers.image.title="HateSnake" \
       org.opencontainers.image.description="A snake style game which you will come to hate"
 
-# Security: dedicated non-root user with a locked password and no shell login.
-RUN addgroup -S hatesnake && \
-	adduser -S -G hatesnake -h /app -s /sbin/nologin hatesnake
+# Processing 3 uses AWT (JAVA2D renderer) --- install the X11 libs, fonts, and
+# freetype it needs to open a window. These are only required for `game` mode;
+# the SmokeTest never touches AWT.
+RUN apt-get update && \
+	apt-get install -y --no-install-recommends \
+		libfreetype6 \
+		fontconfig \
+		fonts-dejavu-core \
+		libx11-6 \
+		libxext6 \
+		libxrender1 \
+		libxtst6 \
+		libxi6 && \
+	rm -rf /var/lib/apt/lists/*
+
+# Security: dedicated non-root system user with a locked shell login.
+RUN groupadd --system hatesnake && \
+	useradd --system --gid hatesnake --home-dir /app --shell /usr/sbin/nologin hatesnake
 
 WORKDIR /app
 

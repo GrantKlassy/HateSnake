@@ -1,5 +1,4 @@
 import java.util.LinkedList;
-import java.util.Queue;
 
 import processing.core.PApplet;
 
@@ -8,16 +7,17 @@ public class HateSnake extends PApplet {
 	// The current state of the game
 	// 0 = Not yet started
 	// 1 = Running
-	// 2 = Dead
+	// 2 = Dead (lockout before auto-reset)
 	int state = 0;
 
 	// Used to hold character input to be processed
-	Queue<Character> keyQueue = new LinkedList<Character>();
+	LinkedList<Character> keyQueue = new LinkedList<Character>();
 
 	// Constants for the game
-	final int boardSizeX = 4;
-	final int boardSizeY = 4;
-	final int scale = 75;
+	final int boardSizeX = 10;
+	final int boardSizeY = 10;
+	final int scale = 50;
+	final int border = 10;
 
 	// The snake for this game
 	Snake snake = new Snake(this.boardSizeX, this.boardSizeY);
@@ -27,8 +27,17 @@ public class HateSnake extends PApplet {
 
 	// Used to slow down or speed up the game
 	// Higher speed = SLOWER. Is there a good way to fix this?
-	final int speed = 15;
+	final int speed = 6;
 	int speedCnt = 0; // (A counter used to delay execution)
+
+	// Grace window: when the next tick would kill us, freeze the snake for
+	// a short time so the player has a chance to turn away.
+	int graceFrames = 0;
+	final int maxGraceFrames = 30; // ~0.5s at 60fps
+
+	// Death lockout: frame number of death + how long we wait before reset.
+	int deathFrame = 0;
+	final int deathLockoutFrames = 180; // 3s at 60fps
 
 	// The colors for the background and grid lines
 	Color backgroundColor = new Color(105, 105, 105);
@@ -43,7 +52,7 @@ public class HateSnake extends PApplet {
 	 */
 	public void settings() {
 		// Set up the size of the windows
-		this.size((this.boardSizeX * this.scale), (this.boardSizeY * this.scale));
+		this.size((this.boardSizeX * this.scale) + (this.border * 2), (this.boardSizeY * this.scale) + (this.border * 2));
 	}
 
 	/* (non-Javadoc)
@@ -62,15 +71,15 @@ public class HateSnake extends PApplet {
 		// Draw the vertical lines on the board
 		this.fill(this.lineColor.getRed(), this.lineColor.getGreen(), this.lineColor.getBlue());
 		for (int i = 0; i <= this.boardSizeX; i++) {
-			int lineX = i * this.scale;
-			int lineY = this.boardSizeY * this.scale;
-			this.line(lineX, 0, lineX, lineY);
+			int lineX = (i * this.scale) + this.border;
+			int lineY = (this.boardSizeY * this.scale) + this.border;
+			this.line(lineX, this.border, lineX, lineY);
 		}
 		// Draw the horizontal lines on the board
 		for (int i = 0; i <= this.boardSizeY; i++) {
-			int lineY = i * this.scale;
-			int lineX = this.boardSizeX * this.scale;
-			this.line(0, lineY, lineX, lineY);
+			int lineY = (i * this.scale) + this.border;
+			int lineX = (this.boardSizeX * this.scale) + this.border;
+			this.line(this.border, lineY, lineX, lineY);
 		}
 
 		// Draw the first position of the snake and apple
@@ -78,13 +87,13 @@ public class HateSnake extends PApplet {
 			int snakeX = snakePos[0];
 			int snakeY = snakePos[1];
 			this.fill(this.snake.getColor().getRed(), this.snake.getColor().getGreen(), this.snake.getColor().getBlue());
-			this.rect((snakeX * this.scale), (snakeY * this.scale), this.scale, this.scale);
+			this.rect((snakeX * this.scale) + this.border, (snakeY * this.scale) + this.border, this.scale, this.scale);
 		}
 
 		// Draw the apple
 		this.fill(this.apple.getColor().getRed(), this.apple.getColor().getGreen(), this.apple.getColor().getBlue());
 		int[] appCoords = this.apple.getCoords();
-		this.rect((appCoords[0] * this.scale), (appCoords[1] * this.scale), this.scale, this.scale);
+		this.rect((appCoords[0] * this.scale) + this.border, (appCoords[1] * this.scale) + this.border, this.scale, this.scale);
 	}
 
 	/* (non-Javadoc)
@@ -103,15 +112,40 @@ public class HateSnake extends PApplet {
 					System.exit(0);
 				}
 
+				// Grace check: while in grace, peek the most recent input so
+				// a last-second turn can save us. Otherwise peek the head.
+				Character peekKey = this.graceFrames > 0
+						? this.keyQueue.peekLast()
+						: this.keyQueue.peek();
+				Integer[] peekPos = this.snake.peekNextPos(peekKey);
+
+				if (this.snake.wouldDieAt(peekPos)) {
+					if (this.graceFrames < this.maxGraceFrames) {
+						this.graceFrames++;
+						// Don't advance speedCnt --- recheck next frame so
+						// the save triggers as soon as the player reacts.
+						return;
+					}
+					// Grace expired --- fall through and let the snake die.
+				}
+
+				// Escaped grace: collapse the queue to the most recent key so
+				// the update below consumes the player's save, not a stale one.
+				if (this.graceFrames > 0 && !this.keyQueue.isEmpty()) {
+					Character last = this.keyQueue.peekLast();
+					this.keyQueue.clear();
+					if (last != null) {
+						this.keyQueue.add(last);
+					}
+				}
+				this.graceFrames = 0;
+
 				// Save the previous tail position
 				Integer tailX = this.snake.getSnake().get(0)[0];
 				Integer tailY = this.snake.getSnake().get(0)[1];
 
-				// Erase the tail
-				this.fill(this.backgroundColor.getRed(), this.backgroundColor.getGreen(), this.backgroundColor.getBlue());
-				this.rect((tailX * this.scale), (tailY * this.scale), this.scale, this.scale);
-
-				// Update the snake
+				// Update the snake (do this before erasing the tail so that if
+				// we die, the last-alive frame stays on screen under the overlay).
 				Character key = null;
 				if (this.keyQueue.peek() != null) {
 					key = this.keyQueue.remove();
@@ -120,9 +154,16 @@ public class HateSnake extends PApplet {
 
 				// Check to see if the snake died
 				if (this.snake.isDead()) {
-					// TODO Something more than just exit
-					System.exit(0);
+					this.state = 2;
+					this.deathFrame = this.frameCount;
+					this.drawDeathOverlay();
+					this.speedCnt++;
+					return;
 				}
+
+				// Erase the tail (safe now that we know we survived)
+				this.fill(this.backgroundColor.getRed(), this.backgroundColor.getGreen(), this.backgroundColor.getBlue());
+				this.rect((tailX * this.scale) + this.border, (tailY * this.scale) + this.border, this.scale, this.scale);
 
 
 				// If the apple was updated...
@@ -130,12 +171,12 @@ public class HateSnake extends PApplet {
 					// Erase the old apple
 					this.fill(this.backgroundColor.getRed(), this.backgroundColor.getGreen(), this.backgroundColor.getBlue());
 					int[] oldAplCoords = this.apple.getLastCoords();
-					this.rect((oldAplCoords[0] * this.scale), (oldAplCoords[1] * this.scale), this.scale, this.scale);
+					this.rect((oldAplCoords[0] * this.scale) + this.border, (oldAplCoords[1] * this.scale) + this.border, this.scale, this.scale);
 
 					// Draw the new apple
 					this.fill(this.apple.getColor().getRed(), this.apple.getColor().getGreen(), this.apple.getColor().getBlue());
 					int[] appCoords = this.apple.getCoords();
-					this.rect((appCoords[0] * this.scale), (appCoords[1] * this.scale), this.scale, this.scale);
+					this.rect((appCoords[0] * this.scale) + this.border, (appCoords[1] * this.scale) + this.border, this.scale, this.scale);
 
 				}
 
@@ -144,7 +185,7 @@ public class HateSnake extends PApplet {
 					int snakeX = snakePos[0];
 					int snakeY = snakePos[1];
 					this.fill(this.snake.getColor().getRed(), this.snake.getColor().getGreen(), this.snake.getColor().getBlue());
-					this.rect((snakeX * this.scale), (snakeY * this.scale), this.scale, this.scale);
+					this.rect((snakeX * this.scale) + this.border, (snakeY * this.scale) + this.border, this.scale, this.scale);
 				}
 
 
@@ -152,13 +193,42 @@ public class HateSnake extends PApplet {
 			// TODO Reset speed count to avoid overflow?
 			// TODO Or maybe use System.timeout() here instead of a counter?
 			this.speedCnt++;
+		} else if (this.state == 2) {
+			// Dead: hold the overlay, then reset after the lockout.
+			if (this.frameCount - this.deathFrame >= this.deathLockoutFrames) {
+				this.resetGame();
+			}
 		}
+	}
+
+	private void drawDeathOverlay() {
+		this.fill(0, 0, 0, 180);
+		this.rect(0, 0, this.width, this.height);
+		this.fill(255, 0, 0);
+		this.textSize(72);
+		this.textAlign(CENTER, CENTER);
+		this.text("YOU DIED", this.width / 2f, this.height / 2f);
+	}
+
+	private void resetGame() {
+		this.snake = new Snake(this.boardSizeX, this.boardSizeY);
+		this.apple = new Apple(this.boardSizeX, this.boardSizeY);
+		this.keyQueue.clear();
+		this.speedCnt = 0;
+		this.graceFrames = 0;
+		this.deathFrame = 0;
+		this.setup();
 	}
 
 	/* (non-Javadoc)
 	 * @see processing.core.PApplet#keyPressed()
 	 */
 	public void keyPressed() {
+
+		// Don't accept input during the death lockout.
+		if (this.state == 2) {
+			return;
+		}
 
 		// If we're not yet running, run the game
 		if (this.state == 0) {

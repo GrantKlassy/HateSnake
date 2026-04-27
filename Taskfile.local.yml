@@ -46,7 +46,27 @@ tasks:
       - '{{.CONTAINER_CMD}} run --rm {{.IMAGE}} version'
 
   dev:
-    desc: Compile and run the game locally (requires a JDK on the host)
+    desc: Compile and run the game locally (uses Temurin 17 --- Processing 3.3.6 is incompatible with newer JDKs)
     cmds:
-      - ./linux/compile.sh
-      - ./linux/run.sh
+      - export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk && export PATH=$JAVA_HOME/bin:$PATH && ./linux/compile.sh
+      - export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk && export PATH=$JAVA_HOME/bin:$PATH && ./linux/run.sh
+
+  dnf:
+    desc: Install required packages (Temurin 17 JDK) via dnf
+    cmds:
+      - |
+        if ! rpm -q temurin-17-jdk >/dev/null 2>&1; then
+          if [ ! -f /etc/yum.repos.d/adoptium.repo ]; then
+            sudo tee /etc/yum.repos.d/adoptium.repo > /dev/null <<'EOF'
+        [Adoptium]
+        name=Adoptium
+        baseurl=https://packages.adoptium.net/artifactory/rpm/fedora/$releasever/$basearch
+        enabled=1
+        gpgcheck=1
+        gpgkey=https://packages.adoptium.net/artifactory/api/gpg/key/public
+        EOF
+          fi
+          sudo dnf install -y temurin-17-jdk
+        else
+          echo "OK: temurin-17-jdk already installed"
+        fi

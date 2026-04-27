@@ -140,6 +140,64 @@ public class Snake {
 		return this.dead;
 	}
 
+	/**
+	 * Non-mutating preview of the next head position given an (optional) key.
+	 * Used by the grace-frame check so HateSnake can decide whether the next
+	 * tick would kill the snake before actually committing to it.
+	 */
+	public Integer[] peekNextPos(Character key) {
+		Dir newDir = this.snakeDir;
+		if (key != null) {
+			if (key == 'w' && this.snakeDir != Dir.DOWN) {
+				newDir = Dir.UP;
+			} else if (key == 'a' && this.snakeDir != Dir.RIGHT) {
+				newDir = Dir.LEFT;
+			} else if (key == 's' && this.snakeDir != Dir.UP) {
+				newDir = Dir.DOWN;
+			} else if (key == 'd' && this.snakeDir != Dir.LEFT) {
+				newDir = Dir.RIGHT;
+			}
+		}
+
+		int headX = this.snake.get(this.snake.size() - 1)[0];
+		int headY = this.snake.get(this.snake.size() - 1)[1];
+		Integer[] nextPos = new Integer[2];
+		if (newDir == Dir.UP) {
+			nextPos[0] = headX;
+			nextPos[1] = headY - 1;
+		} else if (newDir == Dir.LEFT) {
+			nextPos[0] = headX - 1;
+			nextPos[1] = headY;
+		} else if (newDir == Dir.RIGHT) {
+			nextPos[0] = headX + 1;
+			nextPos[1] = headY;
+		} else {
+			nextPos[0] = headX;
+			nextPos[1] = headY + 1;
+		}
+		return nextPos;
+	}
+
+	/**
+	 * Whether a given head position would be fatal right now (wall or body).
+	 * Skips index 0 because the tail will move out of the way this tick in
+	 * the common, non-growing case --- matches the conservative grace behavior.
+	 */
+	public boolean wouldDieAt(Integer[] nextPos) {
+		if (nextPos[0] < 0 || nextPos[0] >= this.boardSizeX
+				|| nextPos[1] < 0 || nextPos[1] >= this.boardSizeY) {
+			return true;
+		}
+		for (int i = 1; i < this.snake.size(); i++) {
+			Integer[] bodyPiece = this.snake.get(i);
+			if (bodyPiece[0].intValue() == nextPos[0].intValue()
+					&& bodyPiece[1].intValue() == nextPos[1].intValue()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	public boolean hasWon() {
 		return this.won;
 	}
