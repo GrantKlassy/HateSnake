@@ -10,6 +10,4 @@ Dockerfile
 lefthook.yml
 Taskfile.yml
 Taskfile.local.yml
-linux
-bin/*.class
-bin/*.jar
+bin

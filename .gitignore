@@ -5,3 +5,7 @@
 .env.*.local
 *.pem
 *.key
+
+# Build output
+bin/
+.task/

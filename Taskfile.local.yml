@@ -1,19 +1,82 @@
 version: "3"
 
-# Repo-local tasks for HateSnake. `task check` on this repo fans out to
-# `local:check`, which builds the container (which in turn runs the smoke
-# tests inside the builder stage).
+# Repo-local tasks for HateSnake.
+#
+#   task local:compile  # javac main + test sources
+#   task local:test     # run JUnit 5 suite (depends on compile)
+#   task local:run      # launch the game window (depends on compile)
+#   task local:jar      # build a runnable HateSnake.jar
+#   task local:clean    # remove all build artifacts
+#   task local:check    # build the container (which re-runs the test suite)
+#
+# Local dev pins JAVA_HOME to Temurin 17 because Processing 3.3.6 is incompatible
+# with newer JDKs. The Dockerfile is also pinned to 17 for the same reason.
 
 vars:
+  JAVA_HOME_LOCAL: /usr/lib/jvm/temurin-17-jdk
+  PROCESSING_CP:
+    sh: find ./lib/processing-3.3.6 -name '*.jar' 2>/dev/null | tr '\n' ':'
+  JUNIT_JAR: ./lib/junit/junit-platform-console-standalone-1.11.3.jar
+  ASSERTJ_JAR: ./lib/junit/assertj-core-3.26.3.jar
+  TEST_CP: '{{.JUNIT_JAR}}:{{.ASSERTJ_JAR}}'
+  MAIN_OUT: ./bin/main
+  TEST_OUT: ./bin/test
+  JAR_OUT: ./bin/HateSnake.jar
+  MAIN_CLASS: hatesnake.HateSnakeApp
   IMAGE: hatesnake:dev
   CONTAINER_CMD:
     sh: command -v docker 2>/dev/null || command -v podman 2>/dev/null || true
 
+env:
+  JAVA_HOME: '{{.JAVA_HOME_LOCAL}}'
+
 tasks:
   check:
-    desc: Build the container (automated tests run inside the builder stage)
+    desc: Build the container (the build re-runs the test suite inside the builder stage)
     cmds:
       - task: docker:build
+
+  compile:
+    desc: Compile main + test sources to bin/
+    sources:
+      - src/main/hatesnake/*.java
+      - src/test/hatesnake/*.java
+      - src/main/manifest.txt
+    generates:
+      - '{{.MAIN_OUT}}/hatesnake/*.class'
+      - '{{.TEST_OUT}}/hatesnake/*.class'
+    cmds:
+      - mkdir -p {{.MAIN_OUT}} {{.TEST_OUT}}
+      - $JAVA_HOME/bin/javac -Werror -Xlint:all -cp "{{.PROCESSING_CP}}" -d {{.MAIN_OUT}} src/main/hatesnake/*.java
+      - $JAVA_HOME/bin/javac -cp "{{.PROCESSING_CP}}:{{.MAIN_OUT}}:{{.TEST_CP}}" -d {{.TEST_OUT}} src/test/hatesnake/*.java
+
+  test:
+    desc: Run the JUnit 5 suite via the Console Launcher (headless, no display required)
+    deps: [compile]
+    cmds:
+      - $JAVA_HOME/bin/java -jar {{.JUNIT_JAR}} execute --class-path "{{.MAIN_OUT}}:{{.TEST_OUT}}:{{.PROCESSING_CP}}:{{.TEST_CP}}" --scan-class-path --details=tree --fail-if-no-tests
+
+  run:
+    desc: Compile and launch the game window (requires a display + Temurin 17)
+    deps: [compile]
+    cmds:
+      - $JAVA_HOME/bin/java -cp "{{.PROCESSING_CP}}:{{.MAIN_OUT}}" {{.MAIN_CLASS}}
+
+  dev:
+    desc: Alias for `task local:run` (kept for backwards compatibility with prior bash workflow)
+    cmds:
+      - task: run
+
+  jar:
+    desc: Build a runnable HateSnake.jar (production classes only, no tests)
+    deps: [compile]
+    cmds:
+      - $JAVA_HOME/bin/jar --create --file {{.JAR_OUT}} --manifest src/main/manifest.txt -C {{.MAIN_OUT}} .
+
+  clean:
+    desc: Remove all build artifacts under bin/
+    cmds:
+      - rm -rf {{.MAIN_OUT}} {{.TEST_OUT}} {{.JAR_OUT}}
 
   build:
     desc: Build the HateSnake container image
@@ -21,7 +84,7 @@ tasks:
       - task: docker:build
 
   docker:build:
-    desc: Build the container. A successful build proves the smoke tests pass.
+    desc: Build the container. A green build proves the test suite passes.
     cmds:
       - |
         if [ -z "{{.CONTAINER_CMD}}" ]; then
@@ -31,7 +94,7 @@ tasks:
         {{.CONTAINER_CMD}} build -t {{.IMAGE}} .
 
   docker:test:
-    desc: Run the smoke tests inside the runtime image
+    desc: Run the test suite inside the runtime image
     cmds:
       - |
         if [ -z "{{.CONTAINER_CMD}}" ]; then
@@ -45,14 +108,8 @@ tasks:
     cmds:
       - '{{.CONTAINER_CMD}} run --rm {{.IMAGE}} version'
 
-  dev:
-    desc: Compile and run the game locally (uses Temurin 17 --- Processing 3.3.6 is incompatible with newer JDKs)
-    cmds:
-      - export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk && export PATH=$JAVA_HOME/bin:$PATH && ./linux/compile.sh
-      - export JAVA_HOME=/usr/lib/jvm/temurin-17-jdk && export PATH=$JAVA_HOME/bin:$PATH && ./linux/run.sh
-
   dnf:
-    desc: Install required packages (Temurin 17 JDK) via dnf
+    desc: Install the required Temurin 17 JDK via dnf (Adoptium repo)
     cmds:
       - |
         if ! rpm -q temurin-17-jdk >/dev/null 2>&1; then
