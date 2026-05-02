@@ -19,7 +19,6 @@ class GameTest {
     void rejectsBadDimensions() {
         assertThatIllegalArgumentException().isThrownBy(() -> new Game(1, 5));
         assertThatIllegalArgumentException().isThrownBy(() -> new Game(5, 1));
-        assertThatIllegalArgumentException().isThrownBy(() -> new Game(5, 5, -1));
     }
 
     @Test
@@ -82,21 +81,18 @@ class GameTest {
     }
 
     @Test
-    void hittingWallTransitionsToDead() {
-        Game g = new Game(3, 3, 0);
+    void hittingWallIsInstadeath() {
+        Game g = new Game(3, 3);
         g.start();
-        Game.TickResult r1 = g.tick();
-        Game.TickResult r2 = g.tick();
-        Game.TickResult r3 = g.tick();
-        assertThat(r1).isEqualTo(Game.TickResult.MOVED);
-        assertThat(r2).isEqualTo(Game.TickResult.MOVED);
-        assertThat(r3).isEqualTo(Game.TickResult.DIED);
+        assertThat(g.tick()).isEqualTo(Game.TickResult.MOVED);
+        assertThat(g.tick()).isEqualTo(Game.TickResult.MOVED);
+        assertThat(g.tick()).isEqualTo(Game.TickResult.DIED);
         assertThat(g.status()).isEqualTo(Game.Status.DEAD);
     }
 
     @Test
     void deadGameStaysDeadOnFurtherTicks() {
-        Game g = new Game(3, 3, 0);
+        Game g = new Game(3, 3);
         g.start();
         g.tick();
         g.tick();
@@ -108,7 +104,7 @@ class GameTest {
 
     @Test
     void resetReturnsGameToReadyState() {
-        Game g = new Game(3, 3, 0);
+        Game g = new Game(3, 3);
         g.start();
         g.tick();
         g.tick();
@@ -121,37 +117,15 @@ class GameTest {
     }
 
     @Test
-    void graceTicksSpareSnakeIfPlayerTurnsBeforeWall() {
-        Game g = new Game(3, 3, 5);
+    void wallCollisionGivesNoGracePeriod() {
+        Game g = new Game(3, 3);
         g.start();
         g.tick();
         g.tick();
-        assertThat(g.snake().head()).isEqualTo(new Position(0, 2));
-
-        Game.TickResult waiting = g.tick();
-        assertThat(waiting).isEqualTo(Game.TickResult.WAITING);
-        assertThat(g.graceTicks()).isEqualTo(1);
-        assertThat(g.status()).isEqualTo(Game.Status.RUNNING);
-
-        g.enqueue(Direction.RIGHT);
-        Game.TickResult moved = g.tick();
-        assertThat(moved).isEqualTo(Game.TickResult.MOVED);
-        assertThat(g.snake().head()).isEqualTo(new Position(1, 2));
-        assertThat(g.graceTicks()).isZero();
-    }
-
-    @Test
-    void graceExpiresAndSnakeDies() {
-        Game g = new Game(3, 3, 2);
-        g.start();
-        g.tick();
-        g.tick();
-        Game.TickResult t1 = g.tick();
-        Game.TickResult t2 = g.tick();
-        Game.TickResult t3 = g.tick();
-        assertThat(t1).isEqualTo(Game.TickResult.WAITING);
-        assertThat(t2).isEqualTo(Game.TickResult.WAITING);
-        assertThat(t3).isEqualTo(Game.TickResult.DIED);
+        // Head is at (0,2); next tick walks off the bottom edge with
+        // no input queued. Snake dies on the very next tick --- no
+        // grace ticks, no chance to enqueue an escape.
+        assertThat(g.tick()).isEqualTo(Game.TickResult.DIED);
         assertThat(g.status()).isEqualTo(Game.Status.DEAD);
     }
 

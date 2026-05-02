@@ -72,7 +72,7 @@ public final class HateSnakeApp extends PApplet {
                 drawDeathOverlay();
                 deathFrame = frameCount;
             }
-            case WAITING, WON -> { /* WAITING: in grace; WON: handled next draw() */ }
+            case WAITING, WON -> { }
         }
     }
 
