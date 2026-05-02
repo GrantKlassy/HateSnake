@@ -2,7 +2,7 @@
 
 # HateSnake
 
-Code last updated @ [2026-04-27](https://github.com/GrantKlassy/HateSnake/commits/main)
+Code last updated @ [2026-05-01](https://github.com/GrantKlassy/HateSnake/commits/main)
 
 > A snake style game which you will come to hate
 

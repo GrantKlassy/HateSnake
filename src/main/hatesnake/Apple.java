@@ -8,6 +8,8 @@ import java.util.Set;
 
 public final class Apple {
 
+    private static final int TRAP_REGION_SLACK = 2;
+
     private final int boardWidth;
     private final int boardHeight;
     private Position position;
@@ -33,14 +35,68 @@ public final class Apple {
 
     public void respawn(Snake snake) {
         previous = position;
-        position = hardestReachableSquare(snake);
+        Position trap = trapInFrontOf(snake);
+        position = (trap != null) ? trap : cruelestReachableSquare(snake);
     }
 
-    Position hardestReachableSquare(Snake snake) {
-        Position head = snake.head();
-        Set<Position> blocked = new HashSet<>(snake.body());
-        blocked.remove(head);
+    // When the snake's reachable region is small enough that we can fill it
+    // before it can wiggle out, drop the apple one step in front of the head.
+    // The bite freezes the tail; we do it again next respawn; the snake fills
+    // its own pocket and dies by self-collision.
+    Position trapInFrontOf(Snake snake) {
+        Set<Position> body = new HashSet<>(snake.body());
+        int regionSize = countReachable(bfsFromHead(snake.head(), body));
+        if (regionSize > snake.size() + TRAP_REGION_SLACK) {
+            return null;
+        }
+        Position front = snake.head().translate(snake.direction());
+        if (!inBounds(front) || body.contains(front)) {
+            return null;
+        }
+        return front;
+    }
 
+    Position cruelestReachableSquare(Snake snake) {
+        Position head = snake.head();
+        Set<Position> body = new HashSet<>(snake.body());
+        int[][] distance = bfsFromHead(head, body);
+
+        long[] bestScore = null;
+        Position best = null;
+        for (int x = 0; x < boardWidth; x++) {
+            for (int y = 0; y < boardHeight; y++) {
+                if (distance[x][y] == -1) {
+                    continue;
+                }
+                Position candidate = new Position(x, y);
+                if (body.contains(candidate)) {
+                    continue;
+                }
+                long postEat = postEatRegionSize(candidate, body);
+                long corner  = cornerScore(candidate, body);
+                long dist    = distance[x][y];
+                long[] score = { -postEat, corner, dist, -x, -y };
+                if (bestScore == null || Arrays.compare(score, bestScore) > 0) {
+                    bestScore = score;
+                    best = candidate;
+                }
+            }
+        }
+        if (best != null) {
+            return best;
+        }
+        for (int x = 0; x < boardWidth; x++) {
+            for (int y = 0; y < boardHeight; y++) {
+                Position p = new Position(x, y);
+                if (!body.contains(p)) {
+                    return p;
+                }
+            }
+        }
+        return position;
+    }
+
+    private int[][] bfsFromHead(Position head, Set<Position> blocked) {
         int[][] distance = new int[boardWidth][boardHeight];
         for (int[] row : distance) {
             Arrays.fill(row, -1);
@@ -61,24 +117,51 @@ public final class Apple {
                 queue.add(n);
             }
         }
+        return distance;
+    }
 
-        long bestScore = Long.MIN_VALUE;
-        Position best = null;
-        for (int x = 0; x < boardWidth; x++) {
-            for (int y = 0; y < boardHeight; y++) {
-                Position candidate = new Position(x, y);
-                if (blocked.contains(candidate)) {
-                    continue;
-                }
-                int d = distance[x][y];
-                long score = (d == -1) ? Long.MAX_VALUE : d;
-                if (score > bestScore) {
-                    bestScore = score;
-                    best = candidate;
+    private int countReachable(int[][] distance) {
+        int count = 0;
+        for (int[] row : distance) {
+            for (int d : row) {
+                if (d != -1) {
+                    count++;
                 }
             }
         }
-        return best;
+        return count;
+    }
+
+    private int postEatRegionSize(Position p, Set<Position> body) {
+        boolean[][] seen = new boolean[boardWidth][boardHeight];
+        Deque<Position> queue = new ArrayDeque<>();
+        queue.add(p);
+        seen[p.x()][p.y()] = true;
+        int size = 0;
+        while (!queue.isEmpty()) {
+            Position cur = queue.poll();
+            size++;
+            for (Direction dir : Direction.values()) {
+                Position n = cur.translate(dir);
+                if (!inBounds(n) || seen[n.x()][n.y()] || body.contains(n)) {
+                    continue;
+                }
+                seen[n.x()][n.y()] = true;
+                queue.add(n);
+            }
+        }
+        return size;
+    }
+
+    private int cornerScore(Position p, Set<Position> body) {
+        int count = 0;
+        for (Direction dir : Direction.values()) {
+            Position next = p.translate(dir);
+            if (!inBounds(next) || body.contains(next)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private boolean inBounds(Position pos) {
