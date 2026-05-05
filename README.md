@@ -51,4 +51,4 @@ handling and win/loss transitions.
 
 ## License
 
-MIT. See [LICENSE.txt](LICENSE.txt).
+[0BSD](LICENSE.txt). Do whatever you want.
