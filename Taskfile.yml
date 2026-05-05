@@ -9,6 +9,11 @@ includes:
     optional: true
 
 tasks:
+  default:
+    desc: Default target --- launch the game (alias for `task local:run`)
+    cmds:
+      - task: local:run
+
   check:
     desc: Run all standard repo checks
     cmds:
