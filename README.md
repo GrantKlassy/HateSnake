@@ -2,7 +2,7 @@
 
 # HateSnake
 
-Code last updated @ [2026-05-01](https://github.com/GrantKlassy/HateSnake/commits/main)
+Code last updated @ [2026-05-05](https://github.com/GrantKlassy/HateSnake/commits/main)
 
 > Snake, but the apple wants you dead.
 
