@@ -4,49 +4,51 @@
 
 Code last updated @ [2026-05-01](https://github.com/GrantKlassy/HateSnake/commits/main)
 
-> A snake style game which you will come to hate
+> Snake, but the apple wants you dead.
 
-## Background
-TODO, link blog post talking about the background behind this project
+The apple runs BFS from the snake's head every respawn. If your reachable
+region is small enough to fill, it baits you one square in front of your face
+so you trap yourself. Otherwise it picks the cruelest reachable square ---
+shrinking your post-eat region, hugging corners, and dragging you the long way
+around. There is no friendly mode.
 
-## Running HateSnake
-
-Requires [Task](https://taskfile.dev) and Temurin 17 (Processing 3.3.6 is incompatible
-with newer JDKs). On Fedora, `task local:dnf` will install the JDK from the Adoptium
-repo.
-
-```bash
-$ git clone https://github.com/GrantKlassy/HateSnake.git
-$ cd HateSnake
-$ task local:run
-```
-
-Other useful tasks:
+## Quickstart
 
 ```bash
-$ task local:test     # run the JUnit 5 suite (headless, no display required)
-$ task local:compile  # javac main + test sources to bin/
-$ task local:jar      # build a runnable HateSnake.jar
-$ task local:clean    # remove all build artifacts
+git clone https://github.com/GrantKlassy/HateSnake.git
+cd HateSnake
+task local:run
 ```
 
-## Tests and container
+Requires [Task](https://taskfile.dev) and Temurin 17. Processing 3.3.6 will
+not run on a newer JDK. On Fedora, `task local:dnf` installs the JDK from the
+Adoptium repo.
 
-The test suite uses **JUnit 5 (Jupiter) + AssertJ**, driven by the JUnit Platform
-Console Launcher --- no Maven or Gradle required. The full suite covers `Position`,
-`Direction`, `Rgb`, `Snake`, `Apple` (BFS pathfinding), and the `Game` state
-machine (including grace-frame handling and win/loss transitions).
+## Tasks
 
-A multi-stage `Dockerfile` compiles main + test sources, runs the JUnit suite
-inside the builder stage, packages a runnable jar, and ships a minimal non-root
-runtime image based on a pinned Eclipse Temurin 17 JRE. The build fails if any
-test fails, so a green image is a green test run.
+| Command                  | What it does                                 |
+| ------------------------ | -------------------------------------------- |
+| `task local:run`         | Compile and launch the game window           |
+| `task local:test`        | JUnit 5 suite, headless, no display required |
+| `task local:jar`         | Build a runnable `HateSnake.jar`             |
+| `task local:build`       | Build the container image                    |
+| `task local:docker:test` | Re-run the suite inside the runtime image    |
+| `task local:clean`       | Remove build artifacts                       |
 
-```bash
-$ task local:build           # podman/docker build -t hatesnake:dev .
-$ task local:docker:test     # re-run the JUnit suite inside the runtime image
-$ task local:docker:version  # print the JDK version baked into the image
-```
+## Container
 
-`task check` also runs the container build as part of the standard repo check
-fan-out.
+The multi-stage `Dockerfile` compiles main and test sources, runs the JUnit
+suite in the builder, and ships a non-root runtime on a pinned Temurin 17 JRE.
+Tests gate the build, so a green image is a green test run. `task check`
+exercises the container build as part of the standard repo check fan-out.
+
+## Tests
+
+JUnit 5 (Jupiter) + AssertJ via the JUnit Platform Console Launcher. No Maven,
+no Gradle. Coverage spans `Position`, `Direction`, `Rgb`, `Snake`, the
+`Apple` BFS pathfinder, and the `Game` state machine including grace-frame
+handling and win/loss transitions.
+
+## License
+
+MIT. See [LICENSE.txt](LICENSE.txt).
